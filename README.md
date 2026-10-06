@@ -22,7 +22,7 @@ You can run and test this project 100% without physical hardware in two ways:
 
 ---
 
-## 🚀 Running the Full BLE Bluetooth Simulation
+## Running the Full BLE Bluetooth Simulation
 
 ### Step 1: Start Android Emulator with Netsim
 
@@ -90,37 +90,6 @@ flutter run -d emulator-5554
    - The Red LED turns on and sends `STOP`.
    - Driver brake reaction is recorded and calculated into an index score.
    - The result appears in the app's **Reaction History** list and appends to `reaction_history.txt`.
-
----
-
-## Flutter Desktop Mode (Windows)
-
-```powershell
-flutter pub get
-flutter test
-flutter run -d windows
-```
-
-History is stored as CSV-like lines in the app documents directory:
-
-```text
-timestamp,gas_ms,brake_ms,index
-```
-
----
-
-## Wokwi Firmware Simulation
-
-Install PlatformIO CLI and build the firmware from the repository root:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install platformio
-.\.venv\Scripts\pio.exe run -e esp32dev
-wokwi-cli --timeout 30s
-```
-
-The Wokwi diagram is in `diagram.json`; firmware paths are configured in `wokwi.toml`. Use the buttons labelled `START`, `BRAKE`, and `HORN`, and turn the potentiometer to simulate the gas pedal. Serial output is at `115200` baud.
 
 ---
 
