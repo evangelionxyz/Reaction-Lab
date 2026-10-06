@@ -103,10 +103,19 @@ class _ReactionHomePageState extends State<ReactionHomePage> {
       return;
     }
     setState(() => _scanning = true);
+    _addEvent('Scanning for BLE devices...');
     _scanSubscription = FlutterBluePlus.scanResults.listen((results) {
       for (final result in results) {
-        if (result.device.platformName == 'Reaction ESP32') {
+        final name = result.device.platformName.isNotEmpty
+            ? result.device.platformName
+            : result.advertisementData.advName;
+        if (name.isNotEmpty) {
+          _addEvent('Discovered: $name');
+        }
+        if (name == 'Reaction ESP32') {
+          _addEvent('Found Reaction ESP32, connecting...');
           _connect(result.device);
+          break;
         }
       }
     });
@@ -117,7 +126,10 @@ class _ReactionHomePageState extends State<ReactionHomePage> {
     } finally {
       await _scanSubscription?.cancel();
       _scanSubscription = null;
-      if (mounted) setState(() => _scanning = false);
+      if (mounted) {
+        setState(() => _scanning = false);
+        _addEvent('Scan finished');
+      }
     }
   }
 
@@ -125,7 +137,10 @@ class _ReactionHomePageState extends State<ReactionHomePage> {
     if (_connecting || _connected) return;
     setState(() => _connecting = true);
     try {
-      await device.connect(timeout: const Duration(seconds: 10));
+      await device.connect(
+        license: License.nonprofit,
+        timeout: const Duration(seconds: 10),
+      );
       final services = await device.discoverServices();
       final service = services
           .where((item) => item.uuid.str128.toLowerCase() == serviceUuid)
