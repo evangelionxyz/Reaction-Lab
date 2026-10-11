@@ -29,10 +29,15 @@ class ReactionRecord {
 }
 
 class EventLogEntry {
-  const EventLogEntry({required this.timestamp, required this.message});
+  const EventLogEntry({
+    required this.timestamp,
+    required this.message,
+    required this.technical,
+  });
 
   final DateTime timestamp;
   final String message;
+  final bool technical;
 }
 
 class ReactionApp extends StatelessWidget {
@@ -107,7 +112,11 @@ class _ReactionHomePageState extends State<ReactionHomePage> {
   StreamSubscription<List<int>>? _valueSubscription;
   final List<ReactionRecord> _history = [];
   final List<EventLogEntry> _events = [
-    EventLogEntry(timestamp: DateTime.now(), message: 'Ready to connect'),
+    EventLogEntry(
+      timestamp: DateTime.now(),
+      message: 'Ready to connect',
+      technical: false,
+    ),
   ];
   int _green = 180;
   int _red = 180;
@@ -115,9 +124,15 @@ class _ReactionHomePageState extends State<ReactionHomePage> {
   double _maximum = 6;
   bool _scanning = false;
   bool _connecting = false;
+  bool _simulating = false;
+  bool _technicalLog = true;
   final bool _simulation = !Platform.isAndroid && !Platform.isIOS;
 
   bool get _connected => _simulation || _characteristic != null;
+
+  List<EventLogEntry> get _visibleEvents => _events
+      .where((event) => _technicalLog || !event.technical)
+      .toList(growable: false);
 
   @override
   void initState() {
@@ -133,12 +148,16 @@ class _ReactionHomePageState extends State<ReactionHomePage> {
     super.dispose();
   }
 
-  void _addEvent(String event) {
+  void _addEvent(String event, {bool technical = true}) {
     if (!mounted) return;
     setState(() {
       _events.insert(
         0,
-        EventLogEntry(timestamp: DateTime.now(), message: event),
+        EventLogEntry(
+          timestamp: DateTime.now(),
+          message: event,
+          technical: technical,
+        ),
       );
       if (_events.length > 8) _events.removeLast();
     });
@@ -267,6 +286,10 @@ class _ReactionHomePageState extends State<ReactionHomePage> {
       timestamp: _formatTimestamp(DateTime.now()),
     );
     setState(() => _history.insert(0, record));
+    if (mounted && _simulating) {
+      setState(() => _simulating = false);
+    }
+    _addEvent('Waktu reaksi #${record.index} diterima', technical: false);
     final directory = await getApplicationDocumentsDirectory();
     final file = File(
       '${directory.path}${Platform.pathSeparator}reaction_history.txt',
@@ -379,14 +402,24 @@ class _ReactionHomePageState extends State<ReactionHomePage> {
   }
 
   Future<void> _startTest() async {
-    if (!_connected) return;
+    if (!_connected || _simulating) return;
+    setState(() => _simulating = true);
     if (_simulation) {
-      _addEvent('Simulation test started');
-      await Future<void>.delayed(const Duration(milliseconds: 700));
-      _onMessage(utf8.encode('RESULT gas=412 brake=286 index=143'));
+      try {
+        _addEvent('Simulation test started');
+        await Future<void>.delayed(const Duration(seconds: 2));
+        _onMessage(utf8.encode('RESULT gas=412 brake=286 index=143'));
+      } finally {
+        if (mounted) setState(() => _simulating = false);
+      }
       return;
     }
-    await _send('START');
+    try {
+      await _send('START');
+    } catch (error) {
+      if (mounted) setState(() => _simulating = false);
+      _addEvent('Start error: $error');
+    }
   }
 
   String _formatTimestamp(DateTime dateTime) {
@@ -550,72 +583,128 @@ class _ReactionHomePageState extends State<ReactionHomePage> {
               suffix: ' s',
             ),
             const SizedBox(height: 8),
-            FilledButton.icon(
-              onPressed: _connected ? _syncSettings : null,
-              icon: const Icon(Icons.sync),
-              label: const Text('SYNC SETTINGS'),
+
+            Row(
+              spacing: 8,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _connected ? _syncSettings : null,
+                  icon: const Icon(Icons.sync),
+                  label: const Text(
+                    'Sync Settings',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
+
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _connected && !_simulating ? _startTest : null,
+                    icon: _simulating
+                        ? SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
+                          )
+                        : const Icon(Icons.play_arrow),
+                    label: Text(
+                      _simulating ? 'Simulating...' : 'Start Test',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
       ),
       const SizedBox(height: 16),
-      FilledButton.icon(
-        onPressed: _connected ? _startTest : null,
-        icon: const Icon(Icons.play_arrow),
-        label: const Text('START REACTION TEST'),
-        style: FilledButton.styleFrom(padding: const EdgeInsets.all(18)),
-      ),
-      const SizedBox(height: 16),
       _panel(
         'EVENT LOG',
-        SizedBox(
-          height: 156,
-          child: ListView.builder(
-            itemCount: _events.length,
-            itemBuilder: (context, index) {
-              final event = _events[index];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(top: 3),
-                      child: Icon(
-                        Icons.circle,
-                        size: 7,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
+        Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _technicalLog ? 'Technical diagnostics' : 'Reaction data',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 12,
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _formatLogTimestamp(event.timestamp),
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            event.message,
-                            style: const TextStyle(
-                              fontFamily: 'monospace',
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              );
-            },
-          ),
+                Switch.adaptive(
+                  value: _technicalLog,
+                  onChanged: (value) => setState(() => _technicalLog = value),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            SizedBox(
+              height: 210,
+              child: _visibleEvents.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No reaction data yet',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: _visibleEvents.length,
+                      itemBuilder: (context, index) {
+                        final event = _visibleEvents[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 3),
+                                child: Icon(
+                                  Icons.circle,
+                                  size: 7,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _formatLogTimestamp(event.timestamp),
+                                      style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      event.message,
+                                      style: const TextStyle(
+                                        fontFamily: 'monospace',
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
         ),
       ),
     ],
