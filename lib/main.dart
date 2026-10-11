@@ -784,7 +784,7 @@ class _ReactionHomePageState extends State<ReactionHomePage> {
   );
 
   Widget _historyPanel() => _panel(
-    'WAKTU REAKSI',
+    'REACTION TIME',
     Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
