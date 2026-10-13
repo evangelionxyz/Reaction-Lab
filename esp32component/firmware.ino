@@ -98,20 +98,28 @@ void setup() {
 void loop() {
   cekKlakson();
 
-  if (!remoteStartRequested && digitalRead(PB_STARTER) == HIGH) {
+  // Deteksi trigger mulai (baik dari Remote BLE maupun Tombol Fisik)
+  bool startTriggered = false;
+  if (remoteStartRequested) {
+    remoteStartRequested = false;
+    startTriggered = true;
+  } else {
+    // Tombol fisik starter (active LOW dengan edge detection dan debounce)
+    static bool starterLama = HIGH;
+    bool starterBaru = digitalRead(PB_STARTER);
+    if (starterLama == HIGH && starterBaru == LOW) {
+      delay(30);
+      if (digitalRead(PB_STARTER) == LOW) {
+        startTriggered = true;
+      }
+    }
+    starterLama = starterBaru;
+  }
+
+  if (!startTriggered) {
+    delay(10);
     return;
   }
-
-  if (!remoteStartRequested) {
-    delay(40);
-  }
-
-  if (!remoteStartRequested) {
-    while (digitalRead(PB_STARTER) == LOW) {
-      delay(1);
-    }
-  }
-  remoteStartRequested = false;
 
   // Countdown 3, 2, 1
   for (int angka = 3; angka >= 1; angka--) {
@@ -131,8 +139,9 @@ void loop() {
   kirimBLE("GAS!");
 
   unsigned long mulaiGas = millis();
+  const unsigned long TIMEOUT_GAS_MS = 5000;
 
-  while (analogRead(GAS) > AMBANG_GAS) {
+  while (analogRead(GAS) > AMBANG_GAS && (millis() - mulaiGas < TIMEOUT_GAS_MS)) {
     cekKlakson();
     delay(1);
   }
@@ -141,7 +150,7 @@ void loop() {
 
   kirimBLE("GAS_RESULT " + String(reaksiGas));
 
-  // Motor berjalan selama 3–6 detik
+  // Motor berjalan selama durasi acak
   Serial.println("MOTOR JALAN - tahan gas...");
 
   unsigned long mulaiJalan = millis();
@@ -158,10 +167,11 @@ void loop() {
   kirimBLE("STOP");
 
   unsigned long mulaiRem = millis();
+  const unsigned long TIMEOUT_REM_MS = 5000;
 
   while (
-    analogRead(GAS) <= AMBANG_GAS ||
-    digitalRead(PB_REM) == HIGH
+    (analogRead(GAS) <= AMBANG_GAS || digitalRead(PB_REM) == HIGH) &&
+    (millis() - mulaiRem < TIMEOUT_REM_MS)
   ) {
     cekKlakson();
     delay(1);

@@ -183,7 +183,7 @@ class _ReactionHomePageState extends State<ReactionHomePage> {
         if (name.isNotEmpty) {
           _addEvent('Discovered: $name');
         }
-        if (name == 'ESP32_Test_BLE - Clone 1') {
+        if (name == 'Reaction ESP32' || name == 'ESP32_Test_BLE - Clone 1') {
           _addEvent('Found Reaction ESP32, connecting...');
           _connect(result.device);
           break;
