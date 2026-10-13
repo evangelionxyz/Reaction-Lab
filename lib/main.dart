@@ -110,6 +110,8 @@ class _ReactionHomePageState extends State<ReactionHomePage> {
   BluetoothCharacteristic? _characteristic;
   StreamSubscription<List<ScanResult>>? _scanSubscription;
   StreamSubscription<List<int>>? _valueSubscription;
+  StreamSubscription<BluetoothConnectionState>? _connectionSubscription;
+  Timer? _testTimeoutTimer;
   final List<ReactionRecord> _history = [];
   final List<EventLogEntry> _events = [
     EventLogEntry(
@@ -144,6 +146,8 @@ class _ReactionHomePageState extends State<ReactionHomePage> {
   void dispose() {
     _scanSubscription?.cancel();
     _valueSubscription?.cancel();
+    _connectionSubscription?.cancel();
+    _testTimeoutTimer?.cancel();
     _device?.disconnect();
     super.dispose();
   }
@@ -179,7 +183,7 @@ class _ReactionHomePageState extends State<ReactionHomePage> {
         if (name.isNotEmpty) {
           _addEvent('Discovered: $name');
         }
-        if (name == 'Reaction ESP32') {
+        if (name == 'ESP32_Test_BLE - Clone 1') {
           _addEvent('Found Reaction ESP32, connecting...');
           _connect(result.device);
           break;
@@ -220,6 +224,23 @@ class _ReactionHomePageState extends State<ReactionHomePage> {
       }
       await _characteristic!.setNotifyValue(true);
       _valueSubscription = _characteristic!.onValueReceived.listen(_onMessage);
+
+      _connectionSubscription?.cancel();
+      _connectionSubscription = device.connectionState.listen((state) {
+        if (state == BluetoothConnectionState.disconnected) {
+          _testTimeoutTimer?.cancel();
+          if (mounted) {
+            setState(() {
+              _device = null;
+              _characteristic = null;
+              _simulating = false;
+              _connecting = false;
+            });
+            _addEvent('ESP32 disconnected', technical: false);
+          }
+        }
+      });
+
       _device = device;
       _addEvent('Connected to Reaction ESP32');
       await _sendConfig();
@@ -231,6 +252,9 @@ class _ReactionHomePageState extends State<ReactionHomePage> {
   }
 
   Future<void> _disconnect() async {
+    _testTimeoutTimer?.cancel();
+    _connectionSubscription?.cancel();
+    _connectionSubscription = null;
     await _valueSubscription?.cancel();
     _valueSubscription = null;
     await _device?.disconnect();
@@ -238,6 +262,7 @@ class _ReactionHomePageState extends State<ReactionHomePage> {
       setState(() {
         _device = null;
         _characteristic = null;
+        _simulating = false;
       });
     }
     _addEvent('Disconnected');
@@ -285,6 +310,7 @@ class _ReactionHomePageState extends State<ReactionHomePage> {
       index: int.tryParse(fields['index'] ?? '') ?? 0,
       timestamp: _formatTimestamp(DateTime.now()),
     );
+    _testTimeoutTimer?.cancel();
     setState(() => _history.insert(0, record));
     if (mounted && _simulating) {
       setState(() => _simulating = false);
@@ -414,9 +440,17 @@ class _ReactionHomePageState extends State<ReactionHomePage> {
       }
       return;
     }
+    _testTimeoutTimer?.cancel();
+    _testTimeoutTimer = Timer(const Duration(seconds: 25), () {
+      if (mounted && _simulating) {
+        setState(() => _simulating = false);
+        _addEvent('Test timed out. No response from ESP32.', technical: false);
+      }
+    });
     try {
       await _send('START');
     } catch (error) {
+      _testTimeoutTimer?.cancel();
       if (mounted) setState(() => _simulating = false);
       _addEvent('Start error: $error');
     }
