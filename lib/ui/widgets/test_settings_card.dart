@@ -11,12 +11,10 @@ class TestSettingsCard extends StatefulWidget {
     required this.minStopTimeSeconds,
     required this.maxStopTimeSeconds,
     required this.isConnected,
-    required this.isTesting,
     required this.onGreenChanged,
     required this.onRedChanged,
     required this.onTimesChanged,
     required this.onSyncPressed,
-    required this.onStartTestPressed,
   });
 
   final int greenPercent;
@@ -24,13 +22,11 @@ class TestSettingsCard extends StatefulWidget {
   final double minStopTimeSeconds;
   final double maxStopTimeSeconds;
   final bool isConnected;
-  final bool isTesting;
 
   final ValueChanged<int> onGreenChanged;
   final ValueChanged<int> onRedChanged;
   final void Function(double minTime, double maxTime) onTimesChanged;
   final VoidCallback onSyncPressed;
-  final VoidCallback onStartTestPressed;
 
   @override
   State<TestSettingsCard> createState() => _TestSettingsCardState();
@@ -215,40 +211,17 @@ class _TestSettingsCardState extends State<TestSettingsCard> {
             ),
             const SizedBox(height: 18),
 
-            // Action Buttons: Sync Settings & Start Test
-            Row(
-              children: [
-                OutlinedButton.icon(
-                  onPressed: widget.isConnected ? widget.onSyncPressed : null,
-                  icon: const Icon(Icons.sync, size: 16),
-                  label: const Text(
-                    'Sync Settings',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: widget.isConnected && !widget.isTesting
-                        ? widget.onStartTestPressed
-                        : null,
-                    icon: widget.isTesting
-                        ? SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: colorScheme.onPrimary,
-                            ),
-                          )
-                        : const Icon(Icons.play_arrow, size: 18),
-                    label: Text(
-                      widget.isTesting ? 'Testing...' : 'Start Test',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ],
+            // Action Button: Sync Settings
+            FilledButton.icon(
+              onPressed: widget.isConnected ? widget.onSyncPressed : null,
+              icon: const Icon(Icons.sync, size: 18),
+              label: const Text(
+                'Sync Settings',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
             ),
           ],
         ),

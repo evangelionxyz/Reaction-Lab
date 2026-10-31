@@ -1,8 +1,5 @@
 import 'dart:async';
-import 'dart:io';
-import 'dart:math';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
@@ -43,18 +40,15 @@ class _ReactionHomeScreenState extends State<ReactionHomeScreen> {
   double _minStopTime = AppConstants.defaultMinStopTime;
   double _maxStopTime = AppConstants.defaultMaxStopTime;
 
-  bool _isSimulationMode = !kIsWeb && !Platform.isAndroid && !Platform.isIOS;
   bool _isScanning = false;
-  bool _isTesting = false;
   bool _technicalLog = true;
 
   StreamSubscription<String>? _rxSub;
   StreamSubscription<String>? _logSub;
   StreamSubscription<BluetoothConnectionState>? _connStateSub;
   StreamSubscription<bool>? _scanSub;
-  Timer? _testTimeoutTimer;
 
-  bool get _isConnected => _isSimulationMode || _bleService.isConnected;
+  bool get _isConnected => _bleService.isConnected;
 
   @override
   void initState() {
@@ -72,6 +66,14 @@ class _ReactionHomeScreenState extends State<ReactionHomeScreen> {
       _addEvent('RX  $message', technical: true);
       if (message.startsWith('RESULT ')) {
         _recordResult(message);
+      } else if (message == '3') {
+        _addEvent('Uji reaksi dimulai: Bersiap...', technical: false);
+      } else if (message == 'GAS!') {
+        _addEvent('Lampu HIJAU menyala: Injak gas!', technical: false);
+      } else if (message == 'STOP') {
+        _addEvent('Lampu MERAH menyala: Pindah ke pedal rem!', technical: false);
+      } else if (message == 'HORN') {
+        _addEvent('Klakson ditekan', technical: false);
       }
     });
 
@@ -86,7 +88,6 @@ class _ReactionHomeScreenState extends State<ReactionHomeScreen> {
 
   @override
   void dispose() {
-    _testTimeoutTimer?.cancel();
     _rxSub?.cancel();
     _logSub?.cancel();
     _connStateSub?.cancel();
@@ -123,17 +124,15 @@ class _ReactionHomeScreenState extends State<ReactionHomeScreen> {
   }
 
   Future<void> _scanDevices() async {
-    if (_isSimulationMode) {
-      _addEvent('Mode simulasi aktif (BLE dinonaktifkan)', technical: false);
-      return;
-    }
-
     _addEvent('Memindai perangkat Bluetooth LE...', technical: false);
 
     await _bleService.startScan(
       timeout: const Duration(seconds: 8),
       onAutoDeviceFound: (device) {
-        _addEvent('Target ${device.platformName} ditemukan! Menghubungkan...', technical: false);
+        _addEvent(
+          'Target ${device.platformName} ditemukan! Menghubungkan...',
+          technical: false,
+        );
         _connectDevice(device);
       },
     );
@@ -144,13 +143,18 @@ class _ReactionHomeScreenState extends State<ReactionHomeScreen> {
     if (!mounted) return;
 
     if (success) {
-      _addEvent('Berhasil terhubung ke ${device.platformName}', technical: false);
+      _addEvent(
+        'Berhasil terhubung ke ${device.platformName}',
+        technical: false,
+      );
       await _syncSettings();
     } else {
       _addEvent('Gagal menghubungkan ke perangkat', technical: false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Koneksi BLE gagal. Pastikan ESP32 dalam jangkauan dan menyala.'),
+          content: Text(
+            'Koneksi BLE gagal. Pastikan ESP32 dalam jangkauan dan menyala.',
+          ),
         ),
       );
     }
@@ -204,19 +208,6 @@ class _ReactionHomeScreenState extends State<ReactionHomeScreen> {
       _maxStopTime = temp;
     }
 
-    if (_isSimulationMode) {
-      _addEvent(
-        'Sinkronisasi simulasi: Green=$_greenPercent%, Red=$_redPercent%, Min=${_minStopTime}s, Max=${_maxStopTime}s',
-        technical: false,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pengaturan berhasil diperbarui (Simulasi)')),
-        );
-      }
-      return;
-    }
-
     final sent = await _bleService.sendConfig(
       greenPercent: _greenPercent,
       redPercent: _redPercent,
@@ -227,47 +218,10 @@ class _ReactionHomeScreenState extends State<ReactionHomeScreen> {
     if (sent && mounted) {
       _addEvent('Pengaturan terkirim ke ESP32', technical: false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pengaturan berhasil disinkronkan ke ESP32')),
+        const SnackBar(
+          content: Text('Pengaturan berhasil disinkronkan ke ESP32'),
+        ),
       );
-    }
-  }
-
-  Future<void> _startTest() async {
-    if (!_isConnected || _isTesting) return;
-    setState(() => _isTesting = true);
-
-    if (_isSimulationMode) {
-      try {
-        _addEvent('Uji reaksi dimulai (Mode Simulasi)...', technical: false);
-        await Future<void>.delayed(const Duration(seconds: 2));
-        final fakeGas = 200 + Random().nextInt(300);
-        final fakeBrake = 180 + Random().nextInt(250);
-        final fakeIndex = 100000 ~/ (fakeGas + fakeBrake);
-        _recordResult('RESULT gas=$fakeGas brake=$fakeBrake index=$fakeIndex');
-      } finally {
-        if (mounted) setState(() => _isTesting = false);
-      }
-      return;
-    }
-
-    _testTimeoutTimer?.cancel();
-    _testTimeoutTimer = Timer(const Duration(seconds: 30), () {
-      if (mounted && _isTesting) {
-        setState(() => _isTesting = false);
-        _addEvent('Waktu pengujian habis. Tidak ada respons dari ESP32.', technical: false);
-      }
-    });
-
-    try {
-      final sent = await _bleService.sendCommand('START');
-      if (!sent) {
-        _testTimeoutTimer?.cancel();
-        if (mounted) setState(() => _isTesting = false);
-      }
-    } catch (e) {
-      _testTimeoutTimer?.cancel();
-      if (mounted) setState(() => _isTesting = false);
-      _addEvent('Gagal memulai uji: $e');
     }
   }
 
@@ -291,11 +245,8 @@ class _ReactionHomeScreenState extends State<ReactionHomeScreen> {
       timestamp: Formatters.formatTimestamp(DateTime.now()),
     );
 
-    _testTimeoutTimer?.cancel();
-
     setState(() {
       _history.insert(0, record);
-      _isTesting = false;
     });
 
     _addEvent(
@@ -345,7 +296,8 @@ class _ReactionHomeScreenState extends State<ReactionHomeScreen> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    final deviceName = _bleService.connectedDevice?.platformName.isNotEmpty == true
+    final deviceName =
+        _bleService.connectedDevice?.platformName.isNotEmpty == true
         ? _bleService.connectedDevice!.platformName
         : 'Reaction ESP32';
 
@@ -371,9 +323,7 @@ class _ReactionHomeScreenState extends State<ReactionHomeScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  _isSimulationMode
-                      ? 'Simulasi'
-                      : (_isConnected ? 'Connected' : 'Offline'),
+                  (_isConnected ? 'Connected' : 'Offline'),
                   style: theme.textTheme.labelLarge?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -394,17 +344,10 @@ class _ReactionHomeScreenState extends State<ReactionHomeScreen> {
                 isConnected: _isConnected,
                 isConnecting: _bleService.isConnecting,
                 isScanning: _isScanning,
-                isSimulationMode: _isSimulationMode,
                 deviceName: deviceName,
                 onScanPressed: _scanDevices,
                 onDisconnectPressed: _disconnectDevice,
                 onShowDevicePicker: _showDevicePicker,
-                onToggleSimulation: (val) {
-                  setState(() => _isSimulationMode = val);
-                  if (val) {
-                    _disconnectDevice();
-                  }
-                },
               ),
               const SizedBox(height: 16),
               TestSettingsCard(
@@ -413,18 +356,17 @@ class _ReactionHomeScreenState extends State<ReactionHomeScreen> {
                 minStopTimeSeconds: _minStopTime,
                 maxStopTimeSeconds: _maxStopTime,
                 isConnected: _isConnected,
-                isTesting: _isTesting,
                 onGreenChanged: (val) => setState(() => _greenPercent = val),
                 onRedChanged: (val) => setState(() => _redPercent = val),
                 onTimesChanged: _onTimesChanged,
                 onSyncPressed: _syncSettings,
-                onStartTestPressed: _startTest,
               ),
               const SizedBox(height: 16),
               EventLogCard(
                 events: _events,
                 isTechnicalLog: _technicalLog,
-                onToggleTechnicalLog: (val) => setState(() => _technicalLog = val),
+                onToggleTechnicalLog: (val) =>
+                    setState(() => _technicalLog = val),
               ),
             ],
           );

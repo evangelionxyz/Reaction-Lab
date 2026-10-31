@@ -14,5 +14,8 @@ void main() {
     expect(find.text('Maximum stop time'), findsOneWidget);
     expect(find.text('Green brightness'), findsOneWidget);
     expect(find.text('Red brightness'), findsOneWidget);
+    expect(find.text('Sync Settings'), findsOneWidget);
+    expect(find.text('Start Test'), findsNothing);
+    expect(find.text('Simulator Aktif'), findsNothing);
   });
 }
