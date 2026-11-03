@@ -16,7 +16,9 @@ class ReactionApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Reaction Lab',
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.light, // Set default to light mode
       home: const ReactionHomeScreen(),
     );
   }
