@@ -179,9 +179,9 @@ void loop() {
 
   unsigned long reaksiRem = millis() - mulaiRem;
 
-  unsigned long index = 100000UL / max(1UL, reaksiGas + reaksiRem);
+  // Hapus perhitungan index di ESP32, cukup kirim data mentahnya saja
   String hasil = "RESULT gas=" + String(reaksiGas) + " brake=" + String(reaksiRem) +
-                 " index=" + String(index) + " timestamp=" + String(millis());
+                 " timestamp=" + String(millis());
   analogWrite(LED_MERAH, 0);
   kirimBLE(hasil);
   delay(300); 

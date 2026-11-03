@@ -234,14 +234,17 @@ class _ReactionHomeScreenState extends State<ReactionHomeScreen> {
 
     final gas = int.tryParse(fields['gas'] ?? '') ?? 0;
     final brake = int.tryParse(fields['brake'] ?? '') ?? 0;
-    final reactionTime =
-        int.tryParse(fields['reaction'] ?? '') ??
-        int.tryParse(fields['time'] ?? '') ??
-        (gas + brake);
+    
+    // Total reaction time is gas + brake
+    final reactionTime = gas + brake;
+
+    // Calculate index on Android side instead of relying on ESP32
+    // Rumus: 100000 dibagi total waktu (dicegah pembagian dengan nol)
+    final calculatedIndex = 100000 ~/ (reactionTime > 0 ? reactionTime : 1);
 
     final record = ReactionRecord(
       reactionTime: reactionTime,
-      index: int.tryParse(fields['index'] ?? '') ?? (_history.length + 1),
+      index: calculatedIndex,
       timestamp: Formatters.formatTimestamp(DateTime.now()),
     );
 
