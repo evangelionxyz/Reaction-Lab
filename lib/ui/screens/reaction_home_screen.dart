@@ -54,7 +54,10 @@ class _ReactionHomeScreenState extends State<ReactionHomeScreen> {
   void initState() {
     super.initState();
     _initServices();
-    _loadHistory();
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadHistory();
+    });
   }
 
   void _initServices() {
