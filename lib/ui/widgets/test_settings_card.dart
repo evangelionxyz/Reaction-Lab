@@ -104,7 +104,7 @@ class _TestSettingsCardState extends State<TestSettingsCard> {
             const SizedBox(height: 16),
 
             // Green Brightness (Percentage 0-100%)
-            _buildBrightnessSlider(
+            _BrightnessSlider(
               label: 'Green brightness',
               value: widget.greenPercent,
               color: Colors.teal,
@@ -114,7 +114,7 @@ class _TestSettingsCardState extends State<TestSettingsCard> {
             const SizedBox(height: 12),
 
             // Red Brightness (Percentage 0-100%)
-            _buildBrightnessSlider(
+            _BrightnessSlider(
               label: 'Red brightness',
               value: widget.redPercent,
               color: Colors.redAccent,
@@ -161,11 +161,14 @@ class _TestSettingsCardState extends State<TestSettingsCard> {
                         inputFormatters: [
                           FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
                         ],
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           suffixText: 's',
                           hintText: '3',
+                          hintStyle: TextStyle(
+                            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                          ),
                           isDense: true,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         ),
                         onChanged: (_) => _onTimeFieldChanged(),
                       ),
@@ -191,11 +194,14 @@ class _TestSettingsCardState extends State<TestSettingsCard> {
                         inputFormatters: [
                           FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
                         ],
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           suffixText: 's',
                           hintText: '6',
+                          hintStyle: TextStyle(
+                            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                          ),
                           isDense: true,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         ),
                         onChanged: (_) => _onTimeFieldChanged(),
                       ),
@@ -228,25 +234,56 @@ class _TestSettingsCardState extends State<TestSettingsCard> {
       ),
     );
   }
+}
 
-  /// Clean, responsive brightness control that will never wrap letters vertically
-  Widget _buildBrightnessSlider({
-    required String label,
-    required int value,
-    required Color color,
-    required IconData icon,
-    required ValueChanged<int> onChanged,
-  }) {
+class _BrightnessSlider extends StatefulWidget {
+  final String label;
+  final int value;
+  final Color color;
+  final IconData icon;
+  final ValueChanged<int> onChanged;
+
+  const _BrightnessSlider({
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.icon,
+    required this.onChanged,
+  });
+
+  @override
+  State<_BrightnessSlider> createState() => _BrightnessSliderState();
+}
+
+class _BrightnessSliderState extends State<_BrightnessSlider> {
+  late int _localValue;
+
+  @override
+  void initState() {
+    super.initState();
+    _localValue = widget.value;
+  }
+
+  @override
+  void didUpdateWidget(covariant _BrightnessSlider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value) {
+      _localValue = widget.value;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
-            Icon(icon, color: color, size: 18),
+            Icon(widget.icon, color: widget.color, size: 18),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                label,
+                widget.label,
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -257,13 +294,13 @@ class _TestSettingsCardState extends State<TestSettingsCard> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
+                color: widget.color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
-                '$value%',
+                '$_localValue%',
                 style: TextStyle(
-                  color: color,
+                  color: widget.color,
                   fontWeight: FontWeight.w700,
                   fontSize: 12,
                 ),
@@ -278,16 +315,22 @@ class _TestSettingsCardState extends State<TestSettingsCard> {
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
           ),
           child: Slider(
-            value: value.toDouble(),
+            value: _localValue.toDouble(),
             min: 0,
             max: 100,
             divisions: 100,
-            activeColor: color,
-            inactiveColor: color.withValues(alpha: 0.2),
-            onChanged: (val) => onChanged(val.round()),
+            activeColor: widget.color,
+            inactiveColor: widget.color.withValues(alpha: 0.2),
+            onChanged: (val) {
+              setState(() => _localValue = val.round());
+            },
+            onChangeEnd: (val) {
+              widget.onChanged(val.round());
+            },
           ),
         ),
       ],
     );
   }
 }
+

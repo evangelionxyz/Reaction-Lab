@@ -92,8 +92,8 @@ class ReactionHistoryCard extends StatelessWidget {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: history.length,
-                    separatorBuilder: (_, _) => const Divider(
-                      color: Color(0xff26323d),
+                    separatorBuilder: (_, _) => Divider(
+                      color: theme.dividerColor.withValues(alpha: 0.1),
                       height: 1,
                     ),
                     itemBuilder: (context, index) {

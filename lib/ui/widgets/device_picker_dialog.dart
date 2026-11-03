@@ -17,11 +17,14 @@ class DevicePickerDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Dialog(
-      backgroundColor: const Color(0xff151c24),
+      backgroundColor: theme.cardTheme.color ?? theme.cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Color(0xff26323d)),
+        side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.1)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -34,14 +37,14 @@ class DevicePickerDialog extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.bluetooth_searching, color: Color(0xff35d0ba)),
+                    Icon(Icons.bluetooth_searching, color: colorScheme.primary),
                     const SizedBox(width: 8),
-                    const Text(
+                    Text(
                       'Perangkat BLE Terdeteksi',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                        color: colorScheme.onSurface,
                       ),
                     ),
                   ],
@@ -55,7 +58,7 @@ class DevicePickerDialog extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Pilih ESP32 atau perangkat Reaction Lab:',
-              style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+              style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 12),
             ConstrainedBox(
@@ -69,15 +72,15 @@ class DevicePickerDialog extends StatelessWidget {
                               ? 'Mencari perangkat BLE di sekitar...'
                               : 'Tidak ada perangkat ditemukan.\nPastikan ESP32 menyala dan Bluetooth aktif.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 13, color: Colors.grey[400]),
+                          style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
                         ),
                       ),
                     )
                   : ListView.separated(
                       shrinkWrap: true,
                       itemCount: devices.length,
-                      separatorBuilder: (_, _) => const Divider(
-                        color: Color(0xff26323d),
+                      separatorBuilder: (_, _) => Divider(
+                        color: theme.dividerColor.withValues(alpha: 0.1),
                         height: 1,
                       ),
                       itemBuilder: (context, index) {
@@ -94,11 +97,11 @@ class DevicePickerDialog extends StatelessWidget {
                           contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                           leading: CircleAvatar(
                             backgroundColor: isTarget
-                                ? const Color(0xff35d0ba).withValues(alpha: 0.2)
-                                : const Color(0xff26323d),
+                                ? colorScheme.primary.withValues(alpha: 0.2)
+                                : colorScheme.onSurface.withValues(alpha: 0.1),
                             child: Icon(
                               Icons.devices,
-                              color: isTarget ? const Color(0xff35d0ba) : Colors.grey,
+                              color: isTarget ? colorScheme.primary : colorScheme.onSurfaceVariant,
                               size: 18,
                             ),
                           ),
@@ -106,13 +109,13 @@ class DevicePickerDialog extends StatelessWidget {
                             name,
                             style: TextStyle(
                               fontWeight: isTarget ? FontWeight.bold : FontWeight.w500,
-                              color: isTarget ? const Color(0xff35d0ba) : Colors.white,
+                              color: isTarget ? colorScheme.primary : colorScheme.onSurface,
                               fontSize: 14,
                             ),
                           ),
                           subtitle: Text(
                             '${item.device.remoteId} • RSSI: ${item.rssi} dBm',
-                            style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                            style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant),
                           ),
                           trailing: FilledButton(
                             style: FilledButton.styleFrom(
